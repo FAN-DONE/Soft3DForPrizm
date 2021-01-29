@@ -3,7 +3,7 @@
 
 static inline void Memset4(void* dst, int val, size_t dwords) {
 	int* point = (int*)dst;
-	for (int i = 0; i < dwords; i++) {
+	for (unsigned int i = 0; i < dwords; i++) {
 		*(point++) = val;
 	}
 }

@@ -3,28 +3,20 @@
 
 #include "FXCG_MATH.h"
 
-
 #define LCD_WIDTH_PX 384
 #define LCD_HEIGHT_PX 216
 
-#define TRANSFORM_MODE_ROTATION 0x01
-#define TRANSFORM_MODE_TRANSLATION 0x02
-#define TRANSFORM_MODE_SCALING 0x04
 
-unsigned short* VRAM_base;
-fix* ZBUF;
+unsigned short* VRAM_base;//显存
+fix* ZBUF;//Z缓冲
+Point3 __POINT0;
+Point3 __POINT1;
+Point3 __POINT2;
 
-static inline void DrawPoint(unsigned int x, unsigned int y, unsigned short color);
-static inline void DrawPoint_s(unsigned int x, unsigned int y, unsigned short color);
-static inline unsigned short RGB_to_565(unsigned short r, unsigned short g, unsigned short b);
-static inline void VRAMClear(unsigned short color);
-static inline void DrawLineVec(Vec2i p0, Vec2i p1, unsigned short color);
-static inline void DrawLine(int x0, int y0, int x1, int y1, unsigned short color);
-static inline void DrawTriangleVec2i(Vec2i t0, Vec2i t1, Vec2i t2, unsigned short color);
-static inline void DrawTriangleVec2iFAST(Vec2i t0, Vec2i t1, Vec2i t2, unsigned short color);
-static inline void DrawTriangleVec3iZBUF(Vec3i t0, Vec3i t1, Vec3i t2, unsigned short color);
-static inline void DrawTriangleVecLight(Vec3i t0, Vec3fix nor0, Vec3i t1, Vec3fix nor1, Vec3i t2, Vec3fix nor2, Vec3fix lightpos, Vec3fix objectcolor, Vec3fix lightcolor);
-static inline Vec2i VertexShaderTriangle(Vec3fix t0, Vec3fix t1, Vec3fix t2, unsigned int transformMode, Vec3fix translation = { 0,0,0 }, Vec3fix scaling = { 0,0,0 }, Vec3fix rotation = { 0,0,0 }, fix angle = 0);
+
+//===========================================================
+//=====================基本图形绘制==========================
+//===========================================================
 
 static inline void DrawPoint(unsigned int x, unsigned int y, unsigned short color) {
 	unsigned short* VRAM = VRAM_base;
@@ -113,121 +105,123 @@ static inline void DrawLine(int x0, int y0, int x1, int y1, unsigned short color
 	}
 }
 
-static inline void DrawTriangleVec2i(Vec2i t0, Vec2i t1, Vec2i t2, unsigned short color) {
-	if (t0.y == t1.y && t0.y == t2.y) return;
-	if (t0.y > t1.y) SwapVec2i(t0, t1);
-	if (t0.y > t2.y) SwapVec2i(t0, t2);
-	if (t1.y > t2.y) SwapVec2i(t1, t2);
-	int total_height = t2.y - t0.y;
+static inline void DrawTriangleVec2iFAST(Vec2i* t, unsigned short color) {
+	if (t[0].y == t[1].y && t[0].y == t[2].y) return;
+	if (t[0].y > t[1].y) SwapVec2i(t[0], t[1]);
+	if (t[0].y > t[2].y) SwapVec2i(t[0], t[2]);
+	if (t[1].y > t[2].y) SwapVec2i(t[1], t[2]);
+	int total_height = t[2].y - t[0].y;
 	for (int i = 0; i < total_height; i++) {
-		int second_half = i > t1.y - t0.y || t1.y == t0.y;
-		int segment_height = second_half ? t2.y - t1.y : t1.y - t0.y;
-		float alpha = (float)i / total_height;
-		float beta = (float)(i - (second_half ? t1.y - t0.y : 0)) / segment_height;
-		int A = t0.x + (t2.x - t0.x) * alpha;
-		int B = second_half ? t1.x + (t2.x - t1.x) * beta : t0.x + (t1.x - t0.x) * beta;
-		if (A > B) Swapi(A, B);
-		for (int j = A; j <= B; j++) {
-			DrawPoint_s(j, t0.y + i, color);
-		}
-	}
-}
-
-static inline void DrawTriangleVec2iFAST(Vec2i t0, Vec2i t1, Vec2i t2, unsigned short color) {
-	if (t0.y == t1.y && t0.y == t2.y) return;
-	if (t0.y > t1.y) SwapVec2i(t0, t1);
-	if (t0.y > t2.y) SwapVec2i(t0, t2);
-	if (t1.y > t2.y) SwapVec2i(t1, t2);
-	int total_height = t2.y - t0.y;
-	for (int i = 0; i < total_height; i++) {
-		int second_half = i > t1.y - t0.y || t1.y == t0.y;
-		int segment_height = second_half ? t2.y - t1.y : t1.y - t0.y;
+		int second_half = i > t[1].y - t[0].y || t[1].y == t[0].y;
+		int segment_height = second_half ? t[2].y - t[1].y : t[1].y - t[0].y;
 		fix alpha = Divfix(FIX(i), FIX(total_height));
-		fix beta = Divfix(FIX(i - (second_half ? t1.y - t0.y : 0)), FIX(segment_height));
-		int A = UNFIX(FIX(t0.x) + Mulfix(FIX(t2.x - t0.x), alpha));
-		int B = second_half ? UNFIX(FIX(t1.x) + Mulfix(FIX(t2.x - t1.x), beta)) : UNFIX(FIX(t0.x) + Mulfix(FIX(t1.x - t0.x), beta));
+		fix beta = Divfix(FIX(i - (second_half ? t[1].y - t[0].y : 0)), FIX(segment_height));
+		int A = UNFIX(FIX(t[0].x) + Mulfix(FIX(t[2].x - t[0].x), alpha));
+		int B = second_half ? UNFIX(FIX(t[1].x) + Mulfix(FIX(t[2].x - t[1].x), beta)) : UNFIX(FIX(t[0].x) + Mulfix(FIX(t[1].x - t[0].x), beta));
 		if (A > B) Swapi(A, B);
 		for (int j = A; j <= B; j++) {
-			DrawPoint_s(j, t0.y + i, color);
+			DrawPoint_s(j, t[0].y + i, color);
 		}
 	}
 }
 
-static inline void DrawTriangleVec3iZBUF(Vec3i t0, Vec3i t1, Vec3i t2, unsigned short color) {
-	if (t0.y == t1.y && t0.y == t2.y) return;
-	int t0x = t0.x, t1x = t1.x, t2x = t2.x;
-	int t0y = t0.y, t1y = t1.y, t2y = t2.y;
+
+//===========================================================
+//=====================固定渲染管线==========================
+//===========================================================
+
+static inline void ShaderInit(Point3 t0, Point3 t1, Point3 t2) {
+	__POINT0 = t0;
+	__POINT1 = t1;
+	__POINT2 = t2;
+}
+
+static inline void RotationY(fix angle) {
+	Vec3fix temp0 = __POINT0.position;
+	Vec3fix temp1 = __POINT1.position;
+	Vec3fix temp2 = __POINT2.position;
+	fix __SIN = Sinfix(angle);
+	fix __COS = Cosfix(angle);
+	__POINT0.position.x = Mulfix(__COS, temp0.x) + Mulfix(__SIN, temp0.z);
+	__POINT0.position.z = Mulfix(__COS, temp0.z) - Mulfix(__SIN, temp0.x);
+
+	__POINT1.position.x = Mulfix(__COS, temp1.x) + Mulfix(__SIN, temp1.z);
+	__POINT1.position.z = Mulfix(__COS, temp1.z) - Mulfix(__SIN, temp1.x);
+
+	__POINT2.position.x = Mulfix(__COS, temp2.x) + Mulfix(__SIN, temp2.z);
+	__POINT2.position.z = Mulfix(__COS, temp2.z) - Mulfix(__SIN, temp2.x);
+}
+
+static inline void Projection() {
+	//__POINT0.position.z = 65535 -  __POINT0.position.z;
+	//__POINT1.position.z = 65535 -  __POINT1.position.z;
+	//__POINT2.position.z = 65535 -  __POINT2.position.z;
+
+	__POINT0.position.x = Divfix(__POINT0.position.x, 65535 - __POINT0.position.z);
+	__POINT0.position.y = Divfix(__POINT0.position.y, 65535 - __POINT0.position.z);
+
+	__POINT1.position.x = Divfix(__POINT1.position.x, 65535 - __POINT1.position.z);
+	__POINT1.position.y = Divfix(__POINT1.position.y, 65535 - __POINT1.position.z);
+
+	__POINT2.position.x = Divfix(__POINT2.position.x, 65535 - __POINT2.position.z);
+	__POINT2.position.y = Divfix(__POINT2.position.y, 65535 - __POINT2.position.z);
+}
+
+static inline void Viewport() {
+	__POINT0.position.x = UNFIX(__POINT0.position.x << 6) + LCD_WIDTH_PX / 2;
+	__POINT0.position.y = LCD_HEIGHT_PX / 2 - UNFIX(__POINT0.position.y << 6);
+
+	__POINT1.position.x = UNFIX(__POINT1.position.x << 6) + LCD_WIDTH_PX / 2;
+	__POINT1.position.y = LCD_HEIGHT_PX / 2 - UNFIX(__POINT1.position.y << 6);
+
+	__POINT2.position.x = UNFIX(__POINT2.position.x << 6) + LCD_WIDTH_PX / 2;
+	__POINT2.position.y = LCD_HEIGHT_PX / 2 - UNFIX(__POINT2.position.y << 6);
+
+	
+}
+
+static inline void Fragment(Vec3fix lightpos,Vec3fix objectcolor,Vec3fix lightcolor) {
+	if (__POINT0.position.y == __POINT1.position.y && __POINT0.position.y == __POINT2.position.y)
+		return;
+	int t0x = __POINT0.position.x, t1x = __POINT1.position.x, t2x = __POINT2.position.x;
+	int t0y = __POINT0.position.y, t1y = __POINT1.position.y, t2y = __POINT2.position.y;
 	if (t0y > t1y) Swapi(t0y, t1y);
 	if (t0y > t2y) Swapi(t0y, t2y);
 	if (t1y > t2y) Swapi(t1y, t2y);
 	if (t0x > t1x) Swapi(t0x, t1x);
 	if (t0x > t2x) Swapi(t0x, t2x);
 	if (t1x > t2x) Swapi(t1x, t2x);
-	for (int i = t0x; i < t2x; i++) {
-		for (int j = t0y; j < t2y; j++) {
-			Vec3i P = { i,j,0 };
-			Vec3fix bc_screen = Barycentric(t0, t1, t2, P);
-			if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0) continue;
-			P.z += Mulfix(t0.z, bc_screen.x);
-			P.z += Mulfix(t1.z, bc_screen.y);
-			P.z += Mulfix(t2.z, bc_screen.z);
-			if (P.z < (ZBUF[j + i * LCD_WIDTH_PX])) {
-				DrawPoint_s(i, j, color);
-				ZBUF[j + i * LCD_WIDTH_PX] = P.z;
-			}
+	Vec3i P;
+	for (P.x = t0x; P.x < t2x; P.x++) {
+		for (P.y = t0y; P.y < t2y; P.y++) {
+			Vec3fix bc_screen = Barycentric(__POINT0.position, __POINT1.position, __POINT2.position, P);
+			P.z = Mulfix(bc_screen.x, __POINT0.position.z + __POINT1.position.z + __POINT2.position.z);
+
+			Vec3fix Pnor;
+			Pnor.x = Mulfix(bc_screen.x, __POINT0.normal.x + __POINT1.normal.x + __POINT2.normal.x);
+			Pnor.y = Mulfix(bc_screen.y, __POINT0.normal.y + __POINT1.normal.y + __POINT2.normal.y);
+			Pnor.z = Mulfix(bc_screen.z, __POINT0.normal.z + __POINT1.normal.z + __POINT2.normal.z);
+			Vec3fix lightDir;
+			lightDir.x = lightpos.x - (P.x);
+			lightDir.y = lightpos.y - (P.y);
+			lightDir.z = lightpos.z - (P.z);
+			Normalizefix(&lightDir);
+			Normalizefix(&Pnor);
+			fix diff = abs(Dotfix(Pnor, lightDir));
+			Vec3fix diffuse;
+			diffuse.x = Mulfix(diff, objectcolor.x) * lightcolor.x >> 15;
+			diffuse.x = diffuse.x * 255 >> 15;
+			diffuse.y = Mulfix(diff, objectcolor.y) * lightcolor.y >> 15;
+			diffuse.y = diffuse.y * 255 >> 15;
+			diffuse.z = Mulfix(diff, objectcolor.z) * lightcolor.z >> 15;
+			diffuse.z = diffuse.z * 255 >> 15;
+			unsigned short endcolor = RGB_to_565(diffuse.x, diffuse.y, diffuse.z);
+			if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0 || (ZBUF[P.x + P.y * LCD_WIDTH_PX]) > P.z) continue;
+			DrawPoint_s(P.x, P.y, endcolor);
+			ZBUF[P.x + P.y * LCD_WIDTH_PX] = P.z;
 		}
 	}
-}
 
-static inline void DrawTriangleVecLight(Vec3i t0, Vec3fix nor0, Vec3i t1, Vec3fix nor1, Vec3i t2, Vec3fix nor2, Vec3fix lightpos, Vec3fix objectcolor, Vec3fix lightcolor) {
-	if (t0.y == t1.y && t0.y == t2.y) return;
-	int t0x = t0.x, t1x = t1.x, t2x = t2.x;
-	int t0y = t0.y, t1y = t1.y, t2y = t2.y;
-	if (t0y > t1y) Swapi(t0y, t1y);
-	if (t0y > t2y) Swapi(t0y, t2y);
-	if (t1y > t2y) Swapi(t1y, t2y);
-	if (t0x > t1x) Swapi(t0x, t1x);
-	if (t0x > t2x) Swapi(t0x, t2x);
-	if (t1x > t2x) Swapi(t1x, t2x);
-	for (int i = t0x; i < t2x; i++) {
-		for (int j = t0y; j < t2y; j++) {
-			Vec3i P = { i,j,0 };
-			Vec3fix bc_screen = Barycentric(t0, t1, t2, P);
-			if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0) continue;
-			P.z += Mulfix(t0.z, bc_screen.x);
-			P.z += Mulfix(t1.z, bc_screen.y);
-			P.z += Mulfix(t2.z, bc_screen.z);
-			if (P.z < (ZBUF[j + i * LCD_WIDTH_PX])) {
-				Vec3fix Pnor;
-				Pnor.x = Mulfix(bc_screen.x, nor0.x + nor1.x + nor2.x);
-				Pnor.y = Mulfix(bc_screen.y, nor0.y + nor1.y + nor2.y);
-				Pnor.z = Mulfix(bc_screen.z, nor0.z + nor1.z + nor2.z);
-				Vec3fix lightDir;
-				lightDir.x = lightpos.x - FIX(P.x);
-				lightDir.y = lightpos.y - FIX(P.y);
-				lightDir.z = lightpos.z - P.z;
-				Normalizefix(&lightDir);
-				Normalizefix(&Pnor);
-				fix diff = abs(Dotfix(Pnor, lightDir));
-				Vec3i diffuse;
-				diffuse.x = Mulfix(diff, objectcolor.x) * lightcolor.x >> 15;
-				diffuse.x = diffuse.x * 255 >> 15;
-				diffuse.y = Mulfix(diff, objectcolor.y) * lightcolor.y >> 15;
-				diffuse.y = diffuse.y * 255 >> 15;
-				diffuse.z = Mulfix(diff, objectcolor.z) * lightcolor.z >> 15;
-				diffuse.z = diffuse.z * 255 >> 15;
-				unsigned short endcolor = RGB_to_565(diffuse.x, diffuse.y, diffuse.z);
-				DrawPoint_s(i, j, endcolor);
-				ZBUF[j + i * LCD_WIDTH_PX] = P.z;
-			}
-		}
-	}
-}
-
-static inline Vec2i VertexShaderTriangle(Vec3fix t0, Vec3fix t1, Vec3fix t2, unsigned int transformMode, Vec3fix translation, Vec3fix scaling, Vec3fix rotation, fix angle) {
-	if ((transformMode & TRANSFORM_MODE_TRANSLATION) == TRANSFORM_MODE_TRANSLATION) {
-
-	}
 }
 
 #endif

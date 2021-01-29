@@ -15,8 +15,13 @@ typedef struct { int x; int y; }Vec2i;
 typedef struct { int x; int y; int z; }Vec3i;
 typedef struct { float x; float y; }Vec2f;
 typedef struct { float x; float y; float z; }Vec3f;
-typedef struct { fix x; fix y; fix z; }Vec3fix;
-typedef struct { fix x; fix y; }Vec2fix;
+typedef struct { int x; int y; int z; int w; }Vec4i;
+typedef struct { Vec3i position; Vec3i normal; Vec2i uv; }Point3;
+typedef struct { Vec4i position; Vec3i normal; Vec2i uv; }Point4;
+
+
+#define Vec3fix Vec3i
+#define Vec2fix Vec2i
 
 static inline fix ftofix(float f);
 static inline float fixtof(fix f);
