@@ -1,6 +1,6 @@
 # Soft3DForPrizm
 
-3D软光栅-C语言新手的图形学尝试<br>
+3D软光栅-C新手的图形学尝试<br>
 An attempt on the Computer Graphics using C<br> 
 
 这是什么？
@@ -17,9 +17,9 @@ Soft3D是个烂大街的名字,可能会和其他库名字重合.注意,两者�
 
 实现
 ===
-* 变换:平移 缩放 旋转
-* 纹理
-* ...
+* 变换:平移 缩放 旋转 简单透视
+* 漫反射光照
+* OBJ模型加载
 
 目前
 ===
@@ -27,6 +27,8 @@ Soft3D是个烂大街的名字,可能会和其他库名字重合.注意,两者�
 
 额外的信息
 =========
-Casio Prizm系列计算器搭载Casio设计的微小系统,允许通过USB安装插件(ADD-IN).该系统提供了一组系统调用(SYSCALL),插件拥有很高的权限.<br>
-CPU架构SH4A,正常频率55MHZ.RAM有2MB,其中162KB为显存(主屏幕尺寸384\*216,像素颜色使用RGB565编码,占2字节).ROM为32MB,使用FAT16文件系统.<br>
+Casio Prizm系列计算器搭载Casio设计的微小系统,允许通过USB安装插件(ADD-IN).<br>
+该系统提供了一组系统调用(SYSCALL),插件拥有很高的权限.<br>
+CPU架构SH4A,正常频率55MHZ.RAM有2MB,其中162KB为显存(主屏幕尺寸384\*216,像素颜色使用RGB565编码,占2字节).<br>
+ROM为32MB,使用FAT16文件系统.<br>
 [PrizmWiKi](https://prizm.cemetech.net/index.php?title=Main_Page)提供了包括Prizm编程的很多有用信息.<br>
